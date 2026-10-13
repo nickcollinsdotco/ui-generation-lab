@@ -4,16 +4,19 @@
 // so this runs the page on Playwright's fake clock and advances it one frame at a
 // time. Output is smooth no matter how slow the machine is.
 //
-// Source is either a scene in scenes/<name>/index.html or a live URL.
+// Source is either a scene in scenes/<name>/index.html or a live URL. For a URL
+// without --selector, a Chrome window opens so you can Alt+click the element.
 //
 // Usage:
 //   node render.mjs <scene|url> [options]
 //
 // Options:
-//   --selector <css>     element to generate (scene default: [data-generate], else body > *)
+//   --selector <css>     element to generate (scene default: [data-generate]; URL default: pick in a window)
 //   --mode <m>           skeleton | skeleton-texts (default skeleton-texts)
 //   --size <WxH>         viewport in CSS px (default 1080x1350 for scenes, 1440x900 for URLs)
 //   --scale <n>          device pixel ratio; output is size × scale (default 1)
+//   --ig                 Instagram portrait: 720x900 at 1.5 = 1080x1350
+//   --reel               Reels/Stories: 720x1280 at 1.5 = 1080x1920
 //   --fps <n>            default 60
 //   --duration <ms>      drawing time, 1600–3600 (default 2400)
 //   --lead <ms>          blank time before the build starts (default 400)
@@ -40,6 +43,8 @@ const args = {};
 for (let i = 0; i < rest.length; i++) {
   const k = rest[i].replace(/^--/, "");
   if (k === "alpha") args.alpha = true;
+  else if (k === "ig") Object.assign(args, { size: "720x900", scale: "1.5" });
+  else if (k === "reel") Object.assign(args, { size: "720x1280", scale: "1.5" });
   else args[k] = rest[++i];
 }
 
@@ -62,8 +67,70 @@ const frames = resolve(outDir, `.frames-${name}`);
 rmSync(frames, { recursive: true, force: true });
 mkdirSync(frames, { recursive: true });
 
-const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH, channel: process.env.CHROME_PATH ? undefined : "chrome" });
-const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale });
+const launch = (headless) => chromium.launch({ headless, executablePath: process.env.CHROME_PATH, channel: process.env.CHROME_PATH ? undefined : "chrome" });
+
+// Live URL without --selector: open a visible window and let the user Alt+click the element.
+// Cookies and logins from that window carry over to the recording.
+let storageState;
+if (isUrl && !args.selector) {
+  const picker = await launch(false);
+  const ctx = await picker.newContext({ viewport: { width, height } });
+  const p = await ctx.newPage();
+  await p.goto(src, { waitUntil: "load" });
+  p.setDefaultTimeout(0);
+  console.log("A Chrome window opened. Close any popups, then Alt+click the part of the page to animate.");
+  args.selector = await p.evaluate(() => new Promise((done) => {
+    const box = document.createElement("div");
+    box.style.cssText = "position:fixed;pointer-events:none;z-index:2147483647;border:2px solid #2563eb;background:rgb(37 99 235/.12);border-radius:4px;transition:all 60ms";
+    const tip = document.createElement("div");
+    tip.textContent = "Alt+click the part to animate · normal clicks work as usual";
+    tip.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;padding:8px 14px;border-radius:8px;background:#111;color:#fff;font:13px system-ui;pointer-events:none";
+    document.documentElement.append(box, tip);
+    const ok = (el) => el && el !== document.body && el !== document.documentElement && el !== box && el !== tip;
+    const selectorFor = (el) => {
+      const parts = [];
+      for (; el && el !== document.body; el = el.parentElement) {
+        if (el.id && document.querySelectorAll("#" + CSS.escape(el.id)).length === 1) { parts.unshift("#" + CSS.escape(el.id)); break; }
+        const same = [...el.parentElement.children].filter((c) => c.tagName === el.tagName);
+        parts.unshift(el.tagName.toLowerCase() + (same.length > 1 ? `:nth-of-type(${same.indexOf(el) + 1})` : ""));
+      }
+      return (parts[0].startsWith("#") ? "" : "body > ") + parts.join(" > ");
+    };
+    let picked = null;
+    const show = (el) => {
+      if (!ok(el)) { box.style.display = "none"; return; }
+      const r = el.getBoundingClientRect();
+      Object.assign(box.style, { display: "block", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+    };
+    const select = (el) => {
+      picked = el; show(el);
+      const r = el.getBoundingClientRect();
+      tip.textContent = `Selected ${Math.round(r.width)}×${Math.round(r.height)} · ↑ bigger · ↓ smaller · Enter to record · Esc to cancel`;
+    };
+    addEventListener("mousemove", (e) => { if (!picked) show(e.altKey ? document.elementFromPoint(e.clientX, e.clientY) : null); }, true);
+    addEventListener("click", (e) => {
+      if (!e.altKey) return;
+      e.preventDefault(); e.stopPropagation();
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (ok(el)) select(el);
+    }, true);
+    addEventListener("keydown", (e) => {
+      if (!picked) return;
+      if (e.key === "ArrowUp" && ok(picked.parentElement)) select(picked.parentElement);
+      else if (e.key === "ArrowDown" && picked.firstElementChild) select(picked.firstElementChild);
+      else if (e.key === "Enter") done(selectorFor(picked));
+      else if (e.key === "Escape") { picked = null; show(null); tip.textContent = "Alt+click the part to animate · normal clicks work as usual"; }
+      else return;
+      e.preventDefault(); e.stopPropagation();
+    }, true);
+  }));
+  storageState = await ctx.storageState();
+  await picker.close();
+  console.log(`Picked: ${args.selector}\n(re-run with --selector '${args.selector}' to skip picking)`);
+}
+
+const browser = await launch(true);
+const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale, storageState });
 await page.clock.install();
 await page.goto(target, { waitUntil: "load" });
 await page.evaluate(() => document.fonts.ready);

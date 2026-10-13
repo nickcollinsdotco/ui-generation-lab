@@ -2,6 +2,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "demo": "node preview.mjs demo",
+    "preview": "node preview.mjs",
     "render": "node render.mjs"
   },
   "dependencies": {
