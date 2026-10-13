@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Example scene</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: grid; place-items: center;
+    background: #f4f4f2;
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #18181b;
+  }
+  .card {
+    width: 360px; padding: 24px; border-radius: 20px;
+    background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / .06), 0 12px 32px rgb(0 0 0 / .08);
+  }
+  .card h2 { margin: 0 0 4px; font-size: 18px; }
+  .card p { margin: 0 0 20px; color: #71717a; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #f0f0ee; }
+  .dot { width: 32px; height: 32px; border-radius: 10px; background: #e8f0ff; flex: none; }
+  .row b { flex: 1; font-weight: 500; }
+  .row span { color: #16a34a; font-weight: 500; }
+  button {
+    width: 100%; margin-top: 16px; padding: 12px; border: 0; border-radius: 12px;
+    background: #18181b; color: #fff; font: inherit; font-weight: 500;
+  }
+</style>
+</head>
+<body>
+  <!-- data-generate marks the element render.mjs animates -->
+  <section class="card" data-generate aria-label="Invoice approvals">
+    <h2>Invoice approvals</h2>
+    <p>3 invoices checked against purchase orders</p>
+    <div class="row"><i class="dot"></i><b>Northwind Ltd</b><span>Approved</span></div>
+    <div class="row"><i class="dot"></i><b>Acme Supplies</b><span>Approved</span></div>
+    <div class="row"><i class="dot"></i><b>Brightline Co</b><span>Approved</span></div>
+    <button>Review exceptions</button>
+  </section>
+</body>
+</html>
