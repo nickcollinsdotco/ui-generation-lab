@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lead routing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Stack+Sans+Text:wght@300;400;500&family=Stack+Sans+Headline:wght@400&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+  /* Figma frame 8863:17586, built at 0.5× (928px → 464px) to fit the 720×900 scene viewport */
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: grid; place-items: center;
+    background: #1a1a1a;
+    font: 300 8px/12px "Stack Sans Text", system-ui, sans-serif;
+    color: #a3a3a3;
+    -webkit-font-smoothing: antialiased;
+  }
+  p { margin: 0; white-space: nowrap; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; font-weight: 400; line-height: 1; }
+  .head { font-family: "Stack Sans Headline", system-ui, sans-serif; font-weight: 400; font-size: 12px; line-height: 16px; color: #fafafa; }
+
+  .frame {
+    width: 464px; box-sizing: border-box; padding: 16px;
+    border: 2px solid rgb(255 255 255 / .4); border-radius: 32px;
+    background: rgb(255 255 255 / .1); backdrop-filter: blur(20px);
+  }
+  .card {
+    display: flex; flex-direction: column; overflow: hidden;
+    background: #111214; border: .75px solid rgb(250 250 250 / .08); border-radius: 16px;
+  }
+  .sep { height: .75px; background: #27272a; flex: none; }
+
+  /* header */
+  .card-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; }
+  .tile {
+    display: grid; place-items: center; flex: none; width: 32px; height: 32px; box-sizing: border-box;
+    background: #18181b; border: .75px solid #27272a; border-radius: 8px;
+  }
+  .tile svg { width: 16px; height: 14px; display: block; }
+  .titles { flex: 1; min-width: 0; }
+  .titles .sub { font-size: 8px; line-height: 12px; }
+  .seg {
+    position: relative; display: flex; gap: 2px; padding: 2px;
+    background: #0a0a0a; border: .5px solid #404040; border-radius: 6px;
+  }
+  .seg span {
+    padding: 5px 8px; border-radius: 4px;
+    font-weight: 500; font-size: 8px; line-height: 12px; color: #d4d4d4;
+  }
+  .seg span.on { background: #262626; color: #fafafa; }
+  .cursor {
+    position: absolute; left: 112px; top: 16.25px; width: 22px; height: 24.6px;
+    transform: rotate(-14.13deg); pointer-events: none;
+  }
+  .cursor svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+  /* content */
+  .card-body { padding: 16px; }
+  .panel {
+    display: flex; flex-direction: column; gap: 21.5px; padding: 12px;
+    background: #171717; border: .5px solid #262626; border-radius: 9.5px;
+  }
+  .summary { display: flex; flex-direction: column; gap: 16px; }
+  .week { display: flex; justify-content: space-between; align-items: flex-start; }
+  .week .date { margin-top: 3px; font-size: 10px; text-transform: uppercase; }
+  .week .count { font-size: 20px; letter-spacing: -.4px; }
+  .split { display: flex; flex-direction: column; gap: 4px; }
+  .split-head { display: flex; justify-content: space-between; align-items: center; }
+  .split-head p:first-child { font-size: 9px; line-height: 14px; }
+  .split-head .mono { font-size: 10px; letter-spacing: -.2px; }
+  .bars, .legend { display: flex; gap: 3px; }
+  .bars { height: 25px; }
+  .bars i { border-radius: 6px; }
+  .legend > div { display: flex; align-items: center; gap: 3px; font-size: 9px; line-height: 14px; }
+  .q { flex: 1; } .n { width: 110.5px; flex: none; } .s { width: 37.5px; flex: none; }
+  .fill-q { background: #fafafa; }
+  .fill-n { background: #525252; }
+  .fill-s { background: #404040 repeating-linear-gradient(-45deg, transparent 0 4px, #6b6b6b 4px 5px); }
+  .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+  .sw.fill-s { background: #404040 repeating-linear-gradient(-45deg, transparent 0 1.5px, #8a8a8a 1.5px 2.25px); }
+
+  .table { display: flex; flex-direction: column; gap: 6px; }
+  .tr { display: flex; align-items: center; gap: 10px; font-size: 9px; line-height: 14px; }
+  .tr.row { padding: 2px 0; }
+  .tr .mono { font-size: 10px; letter-spacing: -.2px; }
+  .c-score { width: 70px; flex: none; }
+  .c-bucket { display: flex; align-items: center; gap: 3px; }
+  .c-gap { flex: 1; }
+  .c-to { width: 65px; flex: none; }
+  .c-meter { display: flex; gap: 1px; width: 31px; flex: none; margin-left: 10.5px; }
+  .c-meter i { width: 3px; height: 8.5px; background: #404040; }
+  .c-meter i.on { background: #fafafa; }
+  .c-head-gap { width: 34.5px; flex: none; }
+  .c-share { margin-left: auto; text-align: right; }
+  .rule { height: 1px; background: #404040; }
+
+  /* switch */
+  .switch-field { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .switch-field .text { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  .switch-field .t { font-weight: 500; font-size: 12px; line-height: normal; color: #fafafa; }
+  .switch-field .d { font-weight: 400; font-size: 10.5px; line-height: normal; color: #a1a1aa; }
+  .switch-field svg { width: 32px; height: 18px; display: block; flex: none; }
+
+  /* footer */
+  .card-foot { display: flex; align-items: center; gap: 6px; padding: 12px 16px; }
+  .card-foot .meta { flex: 1; font-size: 9px; line-height: normal; color: #71717a; text-transform: uppercase; }
+  .btn {
+    display: flex; align-items: center; height: 28px; box-sizing: border-box; padding: 0 14px; border-radius: 6px;
+    font-weight: 500; font-size: 11px; color: #fafafa;
+  }
+  .btn.outline { border: .75px solid #27272a; }
+  .btn.solid { background: #fafafa; color: #0a0a0a; }
+</style>
+</head>
+<body>
+  <!-- data-generate marks the element render.mjs animates -->
+  <section class="frame" data-generate aria-label="Lead routing">
+    <div class="card">
+      <header class="card-head">
+        <div class="tile">
+          <svg viewBox="0 0 32.11 28" fill="none" aria-hidden="true">
+            <path d="M15.4043 0.372846L0.103024 26.8742C-0.189404 27.3713 0.176131 28 0.753677 28H31.3563C31.9338 28 32.2994 27.3713 32.007 26.8742L16.7056 0.372846C16.4132 -0.124282 15.6968 -0.124282 15.4043 0.372846Z" fill="url(#sym)"/>
+            <defs><linearGradient id="sym" x1="0.103" y1="27.627" x2="24.353" y2="13.627" gradientUnits="userSpaceOnUse"><stop stop-color="#D8DDF3" stop-opacity="0"/><stop offset="1" stop-color="#D8DDF3"/></linearGradient></defs>
+          </svg>
+        </div>
+        <div class="titles">
+          <p class="head">Lead routing</p>
+          <p class="sub">Scored and assigned in seconds</p>
+        </div>
+        <div class="seg">
+          <span>Round Robin</span>
+          <span class="on">By Score</span>
+          <div class="cursor">
+            <svg viewBox="0 0 44 49.1753" fill="none" aria-hidden="true">
+              <path d="M13.9783 7.61338L31.6336 25.3087L33.5066 27.1856H24.7615L30.0018 37.0108L30.5193 37.9815L29.5486 38.4991L25.6648 40.5694L24.6951 41.087L24.1775 40.1163L18.4803 29.4356L13.9637 33.796L12.1004 35.5948V5.73057L13.9783 7.61338Z" fill="black" stroke="white" stroke-width="2.2" style="filter: drop-shadow(0 2.2px 2.2px rgb(0 0 0 / .4))"/>
+            </svg>
+          </div>
+        </div>
+      </header>
+      <div class="sep"></div>
+
+      <div class="card-body">
+        <div class="panel">
+          <div class="summary">
+            <div class="week">
+              <div>
+                <p class="head">This week</p>
+                <p class="mono date">Mon 5 – Sun 11 Oct</p>
+              </div>
+              <p class="mono count">64 leads</p>
+            </div>
+            <div class="split">
+              <div class="split-head"><p>Routed by score</p><p class="mono">64 of 64</p></div>
+              <div class="bars"><i class="q fill-q"></i><i class="n fill-n"></i><i class="s fill-s"></i></div>
+              <div class="legend">
+                <div class="q"><i class="sw fill-q"></i>Qualified</div>
+                <div class="n"><i class="sw fill-n"></i>Nurture</div>
+                <div class="s"><i class="sw fill-s"></i>Spam</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="table">
+            <div class="tr">
+              <p class="c-score">Score</p><p>Bucket</p><span class="c-gap"></span>
+              <p class="c-to">Sent to</p><span class="c-head-gap"></span><p class="c-share">Share</p>
+            </div>
+            <div class="rule"></div>
+            <div class="tr row">
+              <p class="mono c-score">70–100</p>
+              <div class="c-bucket"><i class="sw fill-q"></i>Qualified</div><span class="c-gap"></span>
+              <p class="mono c-to">Sales team</p>
+              <div class="c-meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+              <p class="mono c-share">60%</p>
+            </div>
+            <div class="rule"></div>
+            <div class="tr row">
+              <p class="mono c-score">30–69</p>
+              <div class="c-bucket"><i class="sw fill-n"></i>Nurture</div><span class="c-gap"></span>
+              <p class="mono c-to">Follow-up</p>
+              <div class="c-meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div>
+              <p class="mono c-share">30%</p>
+            </div>
+            <div class="rule"></div>
+            <div class="tr row">
+              <p class="mono c-score">0–29</p>
+              <div class="c-bucket"><i class="sw fill-s"></i>Spam</div><span class="c-gap"></span>
+              <p class="mono c-to">Filtered</p>
+              <div class="c-meter"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <p class="mono c-share">10%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="sep"></div>
+
+      <div class="switch-field">
+        <div class="text">
+          <p class="t">Ping me on hot leads</p>
+          <p class="d">Score 90+ goes straight to your phone.</p>
+        </div>
+        <svg viewBox="0 0 64 36" role="switch" aria-checked="true" aria-label="Ping me on hot leads">
+          <rect width="64" height="36" rx="18" fill="#FAFAFA"/><circle cx="46" cy="18" r="14" fill="#0A0A0A"/>
+        </svg>
+      </div>
+      <div class="sep"></div>
+
+      <footer class="card-foot">
+        <p class="mono meta">last lead 4m ago · 0 missed</p>
+        <span class="btn outline">Cancel</span>
+        <span class="btn solid">Save</span>
+      </footer>
+    </div>
+  </section>
+</body>
+</html>

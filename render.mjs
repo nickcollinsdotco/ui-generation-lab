@@ -145,14 +145,15 @@ if (!hasRuntime) {
   await page.waitForFunction(() => !!window.UIGeneration);
 }
 
-const selector = args.selector || (isUrl ? null : "[data-generate], body > *:not(script)");
+// Comma selectors match in document order, so try [data-generate] on its own first.
+const selector = args.selector || (isUrl ? null : ["[data-generate]", "body > *:not(script)"]);
 if (!selector) {
   console.error("Live URLs need --selector, e.g. --selector \".pricing-card\"");
   process.exit(1);
 }
 const opts = { mode: args.mode || "skeleton-texts", duration, delay: lead, ...(args.done ? { done: args.done } : {}) };
 const found = await page.evaluate(({ selector, opts }) => {
-  const el = document.querySelector(selector);
+  const el = [selector].flat().map((s) => document.querySelector(s)).find(Boolean);
   if (!el) return false;
   el.scrollIntoView({ block: "center" });
   // CSS animations (the step dot pulse) run on real time; pause them and seek per frame.

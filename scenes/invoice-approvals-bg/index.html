@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Invoice approvals (background)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Stack+Sans+Text:wght@300;400;500;600&family=Stack+Sans+Headline:wght@400&family=Geist+Mono&display=swap" rel="stylesheet">
+<style>
+  /* Figma frame 8860:19430 (1080×1440 IG post), built at 0.5× = 540×720.
+     Render with --size 540x720 --scale 2 for a 1080×1440 video. */
+  html, body { margin: 0; height: 100%; }
+  body {
+    position: relative; overflow: hidden;
+    background: #0a0a0a;
+    font: 300 13px/19px "Stack Sans Text", system-ui, sans-serif;
+    color: #a3a3a3;
+    -webkit-font-smoothing: antialiased;
+  }
+  p { margin: 0; white-space: nowrap; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; font-weight: 400; }
+
+  /* background: photo at 60%, soft blur + 15% black, soft-light noise */
+  .bg { position: absolute; inset: 0; overflow: hidden; opacity: .6; }
+  .bg img { position: absolute; left: -42px; top: -53.5px; width: 624.44px; height: 829px; object-fit: cover; }
+  .veil { position: absolute; inset: 0; background: rgb(0 0 0 / .15); backdrop-filter: blur(3px); }
+  .noise { position: absolute; inset: 0; background: url(noise.png) 0 0 / 512px 512px; mix-blend-mode: soft-light; }
+  .wordmark { position: absolute; left: 40px; top: 120px; width: 144.29px; height: 18px; display: block; }
+
+  .frame {
+    position: absolute; left: 37.5px; top: 177.5px;
+    width: 465px; box-sizing: border-box; padding: 16px;
+    border: 2px solid rgb(255 255 255 / .4); border-radius: 32px;
+    background: rgb(255 255 255 / .1); backdrop-filter: blur(10px);
+  }
+
+  /* header */
+  .card-head {
+    display: flex; align-items: center; gap: 12.6px; padding: 16px;
+    background: #111214; border: 1px solid rgb(250 250 250 / .08); border-radius: 16px 16px 0 0;
+  }
+  .tile {
+    display: grid; place-items: center; flex: none; width: 40.4px; height: 40.4px; box-sizing: border-box;
+    background: #18181b; border: .95px solid #27272a; border-radius: 10.1px;
+  }
+  .tile svg { width: 20.3px; height: 17.7px; display: block; }
+  .title {
+    flex: 1; min-width: 0;
+    font-family: "Stack Sans Headline", system-ui, sans-serif; font-weight: 400;
+    font-size: 20.2px; line-height: 31px; color: #fafafa;
+  }
+  .seg { display: flex; gap: 2.5px; padding: 2.5px; background: #0a0a0a; border: .63px solid #404040; border-radius: 7.6px; }
+  .seg span { padding: 6.3px 10.1px; border-radius: 5px; font-weight: 500; font-size: 10.1px; line-height: 15.2px; color: #d4d4d4; }
+  .seg span.on { background: #262626; color: #fafafa; }
+
+  /* content */
+  .content { position: relative; display: flex; flex-direction: column; gap: 8px; }
+  .panel {
+    display: flex; flex-direction: column; gap: 40.4px; padding: 12px 16px;
+    background: #171717; border: 1px solid #262626;
+  }
+  .stat { position: relative; height: 25.3px; }
+  .stat .big { font-size: 25.3px; line-height: 1; letter-spacing: -.5px; color: #fafafa; }
+  .stat .sub { margin-top: 3.8px; font-size: 11.4px; line-height: normal; color: #71717a; text-transform: uppercase; }
+  .pending { position: absolute; right: 0; top: 6.3px; display: flex; align-items: center; gap: 5px; }
+  .pending svg { width: 15.2px; height: 15.2px; display: block; }
+  .pending p { font-size: 12.6px; line-height: 1; color: #d4d4d4; text-transform: uppercase; }
+
+  .table { display: flex; flex-direction: column; gap: 7.6px; }
+  .tr { display: flex; align-items: center; justify-content: space-between; }
+  .th { font-size: 9px; line-height: 17.7px; letter-spacing: .36px; text-transform: uppercase; }
+  .c-co { width: 65.7px; }
+  .c-amt { width: 75px; text-align: right; }
+  .c-st { width: 91.6px; display: flex; justify-content: flex-end; }
+  .td-row { opacity: .5; }
+  .td-row .c-co { font-size: 13px; line-height: 19px; }
+  .num { font-size: 12px; line-height: 1; letter-spacing: -.24px; }
+  .rule { height: 1px; background: #404040; }
+  .badge {
+    display: flex; align-items: center; gap: 2.5px; padding: 2.5px 6.3px 2.5px 5px;
+    background: #0a0a0a; border: .63px solid #404040; border-radius: 4px;
+    font-weight: 500; font-size: 8.85px; line-height: 12.6px; color: #d4d4d4;
+  }
+  .badge svg { width: 7.6px; height: 7.6px; display: block; }
+
+  .review {
+    padding: 12px; background: #262626; border: .63px solid #262626; border-radius: 0 0 16px 16px;
+  }
+  .review-row {
+    display: flex; align-items: center; justify-content: space-between; padding: 6px;
+    background: rgb(255 255 255 / .1); border: .63px solid #404040; border-radius: 6px;
+  }
+  .review-row .c-co { font-size: 13px; line-height: 19px; color: #fafafa; }
+  .review-row .num { width: 82px; text-align: right; color: #fafafa; }
+  .actions { display: flex; gap: 5px; }
+  .btn { padding: 6px 9.3px; border-radius: 6px; font-weight: 600; font-size: 9px; line-height: 12px; }
+  .btn.ghost {
+    background: rgb(10 10 10 / .2); color: #d4d4d4;
+    box-shadow: inset 0 0 0 .63px rgb(0 0 0 / .18), inset 0 -1.26px 0 rgb(0 0 0 / .05);
+  }
+  .btn.solid { background: #fff; color: #000; }
+
+  .switch-field {
+    display: flex; align-items: center; gap: 40.4px; height: 70.3px; box-sizing: border-box; padding: 15.2px;
+    background: #171717; border: .63px solid #262626; border-radius: 16px;
+  }
+  .switch-field .text { flex: 1; display: flex; flex-direction: column; gap: 3.8px; }
+  .switch-field .t { font-weight: 500; font-size: 14px; line-height: normal; color: #fafafa; }
+  .switch-field .d { font-size: 10px; line-height: normal; color: #71717a; text-transform: uppercase; }
+  .switch-field svg { width: 40.4px; height: 22.7px; display: block; flex: none; }
+
+  .cursor {
+    position: absolute; right: 4.6px; bottom: 77.3px; width: 27.8px; height: 31.07px;
+    transform: rotate(-14.13deg); pointer-events: none;
+  }
+  .cursor svg { display: block; width: 100%; height: 100%; overflow: visible; }
+</style>
+</head>
+<body>
+  <div class="bg"><img src="bg.jpg" alt=""></div>
+  <div class="veil"></div>
+  <div class="noise"></div>
+  <svg class="wordmark" viewBox="0 0 288.58 36" fill="none" role="img" aria-label="Spectral">
+  <g id="Wordmark" clip-path="url(#wm-clip)">
+  <path id="Vector" d="M21.0238 9.38347C20.8097 9.60647 20.4708 9.58863 20.2567 9.36563C18.8117 7.83144 16.4926 6.85919 14.5481 6.85919C12.4252 6.85919 9.7671 7.58169 9.7671 10.2844C9.7671 12.55 11.7919 13.2725 15.0297 14.2893C19.6591 15.7878 25.6442 17.768 25.6442 24.5738C25.6442 32.441 19.3201 35.9642 12.5679 35.9642C7.89395 35.9642 3.17542 34.323 0.160554 31.4241C-0.0535193 31.219 -0.0535193 30.8711 0.160554 30.657L4.78989 25.9474C5.00396 25.7244 5.35183 25.7512 5.56591 25.9742C7.26957 27.8295 10.0704 29.1585 12.5768 29.1585C15.0833 29.1585 17.3043 28.1952 17.3043 25.439C17.3043 22.8344 14.6997 22.0138 10.2131 20.5688C5.86918 19.1684 1.48067 16.9474 1.48067 10.775C1.47175 3.18427 8.3221 0.0445251 14.6908 0.0445251C18.3746 0.0445251 22.4955 1.36464 25.4658 3.87109C25.6977 4.06732 25.7156 4.43303 25.5015 4.65602L21.0238 9.38347Z" fill="#D8DDF3"/>
+  <path id="Vector_2" d="M50.2091 22.2014H46.6412C46.3468 22.2014 46.106 22.4423 46.106 22.7366V34.5463C46.106 34.8407 45.8652 35.0815 45.5708 35.0815H38.3904C38.0961 35.0815 37.8553 34.8407 37.8553 34.5463V1.45415C37.8553 1.1598 38.0961 0.918967 38.3904 0.918967H50.3964C57.88 0.918967 63.7671 3.62164 63.7671 11.4353C63.7671 19.249 57.3449 22.1925 50.2091 22.1925V22.2014ZM49.7185 7.582H46.6323C46.3379 7.582 46.0971 7.82283 46.0971 8.11718V15.1013C46.0971 15.3957 46.3379 15.6365 46.6323 15.6365H49.5758C52.662 15.6365 55.5074 14.7178 55.5074 11.4888C55.5074 8.2599 52.662 7.582 49.7185 7.582Z" fill="#D8DDF3"/>
+  <path id="Vector_3" d="M75.4875 34.5463V1.45415C75.4875 1.1598 75.7284 0.918967 76.0227 0.918967H97.9206C98.215 0.918967 98.4558 1.1598 98.4558 1.45415V7.37685C98.4558 7.6712 98.215 7.91203 97.9206 7.91203H83.988C83.6937 7.91203 83.4529 8.15286 83.4529 8.44721V13.7901C83.4529 14.0845 83.6937 14.3253 83.988 14.3253H97.1C97.3944 14.3253 97.6352 14.5661 97.6352 14.8605V20.3996C97.6352 20.694 97.3944 20.9348 97.1 20.9348H83.988C83.6937 20.9348 83.4529 21.1757 83.4529 21.47V27.4908C83.4529 27.7852 83.6937 28.026 83.988 28.026H98.7948C99.0891 28.026 99.33 28.2668 99.33 28.5612V34.5374C99.33 34.8318 99.0891 35.0726 98.7948 35.0726H76.0316C75.7373 35.0726 75.4965 34.8318 75.4965 34.5374L75.4875 34.5463Z" fill="#D8DDF3"/>
+  <path id="Vector_4" d="M128.328 36.0001C117.812 36.0001 109.945 28.668 109.945 17.9555C109.945 7.24287 118.053 5.67549e-05 128.471 5.67549e-05C133.056 5.67549e-05 138.006 1.60561 140.905 4.63831C141.101 4.84347 141.092 5.18242 140.887 5.38757L136.07 10.2042C135.847 10.4272 135.491 10.4005 135.285 10.1596C133.698 8.34892 131.165 7.4837 128.756 7.4837C123.012 7.4837 118.909 11.9257 118.909 17.9555C118.909 23.9852 122.914 28.4272 128.605 28.4272C131.575 28.4272 133.974 27.2052 135.473 25.4391C135.687 25.1894 136.053 25.1537 136.293 25.3767L141.208 29.9971C141.422 30.2022 141.44 30.5412 141.244 30.7553C138.256 34.002 133.84 36.009 128.319 36.009L128.328 36.0001Z" fill="#D8DDF3"/>
+  <path id="Vector_5" d="M166.21 8.50073V34.5463C166.21 34.8407 165.969 35.0815 165.675 35.0815H158.495C158.2 35.0815 157.959 34.8407 157.959 34.5463V8.50073C157.959 8.20638 157.719 7.96555 157.424 7.96555H148.843C148.549 7.96555 148.308 7.72472 148.308 7.43036V1.45415C148.308 1.1598 148.549 0.918967 148.843 0.918967H175.326C175.62 0.918967 175.861 1.1598 175.861 1.45415V7.42144C175.861 7.7158 175.62 7.95663 175.326 7.95663H166.745C166.451 7.95663 166.21 8.19746 166.21 8.49181V8.50073Z" fill="#D8DDF3"/>
+  <path id="Vector_6" d="M204.511 34.805L197.429 21.8C197.331 21.6306 197.153 21.5235 196.956 21.5235H195.012C194.718 21.5235 194.477 21.7644 194.477 22.0587V34.5463C194.477 34.8407 194.236 35.0815 193.941 35.0815H186.904C186.609 35.0815 186.369 34.8407 186.369 34.5463V1.45415C186.369 1.1598 186.609 0.918967 186.904 0.918967H199.4C205.965 0.918967 212.477 3.42541 212.477 11.248C212.477 15.6098 210.033 18.7852 206.019 20.248C205.698 20.364 205.555 20.7386 205.733 21.0329L213.815 34.2698C214.038 34.6266 213.779 35.0904 213.36 35.0904H204.984C204.788 35.0904 204.609 34.9834 204.511 34.8139V34.805ZM198.83 7.582H194.976C194.682 7.582 194.441 7.82283 194.441 8.11718V15.0032C194.441 15.2976 194.682 15.5384 194.976 15.5384H198.348C201.006 15.5384 204.333 14.8605 204.333 11.3907C204.333 8.20638 201.291 7.582 198.83 7.582Z" fill="#D8DDF3"/>
+  <path id="Vector_7" d="M267.048 34.5463V1.45415C267.048 1.1598 267.288 0.918967 267.583 0.918967H274.808C275.102 0.918967 275.343 1.1598 275.343 1.45415V27.357C275.343 27.6514 275.584 27.8922 275.878 27.8922H288.027C288.321 27.8922 288.562 28.133 288.562 28.4274V34.5463C288.562 34.8407 288.321 35.0815 288.027 35.0815H267.574C267.279 35.0815 267.039 34.8407 267.039 34.5463H267.048Z" fill="#D8DDF3"/>
+  <path id="Vector_8" d="M238.397 1.37388L219.728 33.7079C219.372 34.3144 219.818 35.0815 220.522 35.0815H257.86C258.565 35.0815 259.011 34.3144 258.654 33.7079L239.985 1.37388C239.628 0.767341 238.754 0.767341 238.397 1.37388Z" fill="url(#wm-grad)"/>
+  </g>
+  <defs>
+  <linearGradient id="wm-grad" x1="219.728" y1="34.6266" x2="249.315" y2="17.5453" gradientUnits="userSpaceOnUse">
+  <stop stop-color="#D8DDF3" stop-opacity="0"/>
+  <stop offset="1" stop-color="#D8DDF3"/>
+  </linearGradient>
+  <clipPath id="wm-clip">
+  <rect width="288.58" height="36" fill="white"/>
+  </clipPath>
+  </defs>
+  </svg>
+
+  <!-- data-generate marks the element render.mjs animates -->
+  <section class="frame" data-generate aria-label="Invoice approvals">
+    <header class="card-head">
+      <div class="tile">
+        <svg viewBox="0 0 40.5785 35.3846" fill="none" aria-hidden="true">
+          <path d="M19.467 0.471179L0.130196 33.9618C-0.239357 34.5901 0.222583 35.3846 0.952448 35.3846H39.6261C40.3559 35.3846 40.8179 34.5901 40.4483 33.9618L21.1115 0.471179C20.742 -0.15706 19.8366 -0.15706 19.467 0.471179Z" fill="url(#sym)"/>
+          <defs><linearGradient id="sym" x1="0.13" y1="34.913" x2="30.775" y2="17.221" gradientUnits="userSpaceOnUse"><stop stop-color="#D8DDF3" stop-opacity="0"/><stop offset="1" stop-color="#D8DDF3"/></linearGradient></defs>
+        </svg>
+      </div>
+      <p class="title">Invoice approvals</p>
+      <div class="seg">
+        <span>Manual</span>
+        <span class="on">Automatic</span>
+      </div>
+    </header>
+
+    <div class="content">
+      <div>
+        <div class="panel">
+          <div class="stat">
+            <p class="mono big">31 approved</p>
+            <p class="mono sub">While you slept</p>
+            <div class="pending">
+              <svg viewBox="0 0 30.33 30.33" fill="none" aria-hidden="true">
+                <circle cx="15.165" cy="15.165" r="13.82" stroke="#737373" stroke-width="2.69"/>
+                <path d="M15.165 15.165V7.582A7.582 7.582 0 0 1 22.747 15.165Z" fill="#737373"/>
+              </svg>
+              <p class="mono">1 pending</p>
+            </div>
+          </div>
+
+          <div class="table">
+            <div class="tr mono th">
+              <p class="c-co">Company</p><p class="c-amt">Amount</p><div class="c-st"><p>Status</p></div>
+            </div>
+            <div class="rule"></div>
+            <div class="tr td-row">
+              <p class="c-co">Google Ads</p><p class="mono num c-amt">€212</p>
+              <div class="c-st"><span class="badge"><svg viewBox="0 0 15.1648 15.1648" fill="none" aria-hidden="true"><path d="M4.739 7.582L6.635 9.478L10.426 5.687M13.901 7.582C13.901 11.072 11.072 13.901 7.582 13.901C4.093 13.901 1.264 11.072 1.264 7.582C1.264 4.093 4.093 1.264 7.582 1.264C11.072 1.264 13.901 4.093 13.901 7.582Z" stroke="#4ADE80" stroke-width="1.8956" stroke-linecap="round" stroke-linejoin="round"/></svg>Approved</span></div>
+            </div>
+            <div class="rule"></div>
+            <div class="tr td-row">
+              <p class="c-co">Stripe</p><p class="mono num c-amt">€69</p>
+              <div class="c-st"><span class="badge"><svg viewBox="0 0 15.1648 15.1648" fill="none" aria-hidden="true"><path d="M4.739 7.582L6.635 9.478L10.426 5.687M13.901 7.582C13.901 11.072 11.072 13.901 7.582 13.901C4.093 13.901 1.264 11.072 1.264 7.582C1.264 4.093 4.093 1.264 7.582 1.264C11.072 1.264 13.901 4.093 13.901 7.582Z" stroke="#4ADE80" stroke-width="1.8956" stroke-linecap="round" stroke-linejoin="round"/></svg>Approved</span></div>
+            </div>
+            <div class="rule"></div>
+            <div class="tr td-row">
+              <p class="c-co">Hetzner</p><p class="mono num c-amt">€75</p>
+              <div class="c-st"><span class="badge"><svg viewBox="0 0 15.1648 15.1648" fill="none" aria-hidden="true"><path d="M4.739 7.582L6.635 9.478L10.426 5.687M13.901 7.582C13.901 11.072 11.072 13.901 7.582 13.901C4.093 13.901 1.264 11.072 1.264 7.582C1.264 4.093 4.093 1.264 7.582 1.264C11.072 1.264 13.901 4.093 13.901 7.582Z" stroke="#4ADE80" stroke-width="1.8956" stroke-linecap="round" stroke-linejoin="round"/></svg>Approved</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="review">
+          <div class="review-row">
+            <p class="c-co">Studio Kale</p>
+            <p class="mono num">€1850</p>
+            <div class="actions">
+              <span class="btn ghost">Flag</span>
+              <span class="btn solid">Approve</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="switch-field">
+        <div class="text">
+          <p class="t">Auto-approve under €500</p>
+          <p class="mono d">Anything over goes to you</p>
+        </div>
+        <svg viewBox="0 0 80.8791 45.4945" role="switch" aria-checked="true" aria-label="Auto-approve under €500">
+          <rect width="80.8791" height="45.4945" rx="22.7473" fill="#A3A3A3"/><circle cx="58.1319" cy="22.7473" r="17.6923" fill="#0A0A0A"/>
+        </svg>
+      </div>
+
+      <div class="cursor">
+        <svg viewBox="0 0 55.6044 62.1446" fill="none" aria-hidden="true">
+          <path d="M17.6657 9.62222L39.9762 31.9835L42.3434 34.3546H31.2907L37.9137 46.7726L38.568 47.9992L37.3415 48.6535L32.4342 51.2697L31.2077 51.923L30.5534 50.6964L23.3542 37.1984L17.6471 42.7091L15.2917 44.9826V7.24233L17.6657 9.62222Z" fill="black" stroke="white" stroke-width="2.78022" style="filter: drop-shadow(0 2.78px 2.78px rgb(0 0 0 / .5))"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
