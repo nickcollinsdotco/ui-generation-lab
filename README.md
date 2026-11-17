@@ -31,9 +31,16 @@ npm install
 npm run demo
 ```
 
-Your browser opens the creator's demo (three cards). Use the buttons at the top: **Skeleton**, **Skeleton + generation texts**, **Replay**. Press `Ctrl+C` in the terminal to stop it.
+Your browser opens the creator's demo (three cards). Use the buttons at the top: **Skeleton**, **Skeleton + generation texts**, **Replay**. **Text** and **Text and images** open the headline and photo demos, with a settings panel. Press `Ctrl+C` in the terminal to stop it.
 
-These are the two modes you can record:
+There are five variants (what gets drawn):
+- `ui` (default): the dotted wireframe of a card or component.
+- `text`: a headline, every letter traced along its real outline in dots, then fading in letter by letter.
+- `small-text`: a dotted line through each line of smaller text (eyebrows, captions).
+- `image`: a photo built up as a tone sketch, a halftone, colour dots, then the photo.
+- `auto`: one block mixing all of them (big text as `text`, small as `small-text`, photos as `image`).
+
+And two modes (work with every variant):
 - `skeleton`: the drawing, then the reveal.
 - `skeleton-texts` (default): the same, plus an agent log, CSS being written and a step line beside the card. Needs empty space around the element.
 
@@ -106,17 +113,32 @@ The video is `out/pricing.mp4`: 1080×1350, Instagram portrait. Use `--reel` ins
 
 Or skip the commands and just tell Claude: *"render pricing for Instagram"*.
 
+### Headlines and photos
+
+A scene can mark several elements, each with its own variant and start delay (ms). `scenes/editorial` is a sample:
+
+```html
+<p  data-generate="small-text">Field notes · Spring</p>
+<h1 data-generate="text" data-generate-delay="150">Tulips in the long light</h1>
+<div data-generate="image" data-generate-delay="400"><img src="tulips.jpg"></div>
+```
+
+- Put `data-generate="image"` on a wrapper around the `<img>`, not on the `<img>` itself (it flickers).
+- Animate the headline and its paragraph separately rather than one `auto` block: letters fade one after another, so one block with a paragraph takes ~10 s.
+- The side texts (agent log, step line) only appear where there's empty space around the element. Optional per element: `data-generate-mode`, `data-generate-duration`.
+
 ## 4. Options
 
 Add any of these after the URL or scene name.
 
 | Option | Default | What it does |
 | --- | --- | --- |
+| `--variant text` | the scene's `data-generate` value, else `ui` | `ui`, `text`, `small-text`, `image` or `auto`. Overrides every element. |
 | `--mode skeleton` | `skeleton-texts` | Drawing only, no side texts. |
 | `--ig` / `--reel` | — | Instagram portrait (1080×1350) / Reels & Stories (1080×1920). |
 | `--size 1280x720 --scale 1.5` | URL 1440×900, scene 1080×1350 | Custom size: window size in px × scale = video size. Higher scale = sharper text. |
 | `--done "Card ready"` | `Ready` | Last step label in `skeleton-texts`. |
-| `--duration 3200` | 2400 | Slower or faster drawing, in ms (1600–3600). |
+| `--duration 3200` | `ui` 2400, others 3000 | Slower or faster drawing, in ms (`ui` 1600–3600, others 2000–4500). The text variants fade letters in one after another, so long text runs past this; the video waits for it. |
 | `--hold 2000` | 1200 | How long the finished UI stays on screen at the end (ms). |
 | `--lead 0` | 400 | Blank time before the build starts (ms). |
 | `--fps 30` | 60 | Halves render time. Fine for drafts. |
@@ -134,9 +156,9 @@ Add any of these after the URL or scene name.
 | `out/` | Your videos. Not committed to git. |
 | `render.mjs` | The recorder. Plays the page on a fake clock, one frame at a time, so video is smooth however slow the computer is. |
 | `preview.mjs` | Local web server for the demo and scenes. |
-| `lib/` | The animation runtime (`ui-generation.js` / `.css`). |
+| `lib/` | The animation runtime: `ui-generation.js` / `.css`, plus `text-image-generation.js` / `.css` for the text and image variants (`ui-generation.js` imports it). |
 | `.claude/skills/transitions-ui-generation/` | The skill itself. Claude reads it here. Hidden folder: it starts with a dot. |
 
 ## Updating the skill
 
-Ask Claude: *"update the transitions-ui-generation skill from GitHub and copy the runtime into lib/ and demo/"*.
+Ask Claude: *"update the transitions-ui-generation skill from GitHub and copy the runtime into lib/ and demo/"*. The skill lives in `skills/transitions-ui-generation/` of [Jakubantalik/transitions.dev](https://github.com/Jakubantalik/transitions.dev).

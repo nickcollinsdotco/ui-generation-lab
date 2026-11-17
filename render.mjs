@@ -12,13 +12,14 @@
 //
 // Options:
 //   --selector <css>     element to generate (scene default: [data-generate]; URL default: pick in a window)
+//   --variant <v>        ui | text | small-text | image | auto (default: the element's data-generate value, else ui)
 //   --mode <m>           skeleton | skeleton-texts (default skeleton-texts)
 //   --size <WxH>         viewport in CSS px (default 1080x1350 for scenes, 1440x900 for URLs)
 //   --scale <n>          device pixel ratio; output is size × scale (default 1)
 //   --ig                 Instagram portrait: 720x900 at 1.5 = 1080x1350
 //   --reel               Reels/Stories: 720x1280 at 1.5 = 1080x1920
 //   --fps <n>            default 60
-//   --duration <ms>      drawing time, 1600–3600 (default 2400)
+//   --duration <ms>      drawing time; ui 1600–3600 (default 2400), text/image 2000–4500 (default 3000)
 //   --lead <ms>          blank time before the build starts (default 400)
 //   --hold <ms>          time on the finished UI at the end (default 1200)
 //   --done <text>        last step label, e.g. "Pricing card ready"
@@ -36,7 +37,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const [src, ...rest] = process.argv.slice(2);
 if (!src) {
-  console.error("Usage: node render.mjs <scene|url> [--selector css] [--mode skeleton-texts] [--size 1080x1350] ...");
+  console.error("Usage: node render.mjs <scene|url> [--selector css] [--variant ui] [--mode skeleton-texts] [--size 1080x1350] ...");
   process.exit(1);
 }
 const args = {};
@@ -50,7 +51,11 @@ for (let i = 0; i < rest.length; i++) {
 
 const isUrl = /^https?:\/\//.test(src);
 const fps = Number(args.fps || 60);
-const duration = Number(args.duration || 2400);
+const VARIANTS = ["ui", "text", "small-text", "image", "auto"];
+if (args.variant && !VARIANTS.includes(args.variant)) {
+  console.error(`--variant must be one of ${VARIANTS.join(", ")}`);
+  process.exit(1);
+}
 const lead = Number(args.lead ?? 400);
 const hold = Number(args.hold ?? 1200);
 const scale = Number(args.scale || 1);
@@ -133,15 +138,25 @@ const browser = await launch(true);
 const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale, storageState });
 await page.clock.install();
 await page.goto(target, { waitUntil: "load" });
-await page.evaluate(() => document.fonts.ready);
+// Text and image variants trace the rendered font and sample image pixels, so wait for both.
+await page.evaluate(() => Promise.all([document.fonts.ready, ...[...document.images].map((i) => i.decode().catch(() => {}))]));
 if (isUrl) await page.waitForTimeout(Number(args.wait ?? 1500));
 await page.clock.pauseAt(Date.now() + 1000);
 
-// Inject the runtime unless the scene already loads it.
+// Inject the runtime unless the scene already loads it. ui-generation.js imports
+// ./text-image-generation.js, which an inline script can't resolve, so that one
+// is loaded from a blob URL instead.
 const hasRuntime = await page.evaluate(() => !!window.UIGeneration);
 if (!hasRuntime) {
-  await page.addStyleTag({ content: readFileSync(resolve(here, "lib/ui-generation.css"), "utf8") });
-  await page.addScriptTag({ type: "module", content: readFileSync(resolve(here, "lib/ui-generation.js"), "utf8") });
+  const lib = (f) => readFileSync(resolve(here, "lib", f), "utf8");
+  await page.addStyleTag({ content: lib("ui-generation.css") + lib("text-image-generation.css") });
+  await page.evaluate((src) => { window.__tigUrl = URL.createObjectURL(new Blob([src], { type: "text/javascript" })); }, lib("text-image-generation.js"));
+  const ui = lib("ui-generation.js").replace(
+    'import * as TIG from "./text-image-generation.js";',
+    "const TIG = await import(window.__tigUrl);",
+  );
+  if (!ui.includes("window.__tigUrl")) throw new Error("lib/ui-generation.js no longer imports ./text-image-generation.js as expected; update render.mjs");
+  await page.addScriptTag({ type: "module", content: ui });
   await page.waitForFunction(() => !!window.UIGeneration);
 }
 
@@ -151,11 +166,16 @@ if (!selector) {
   console.error("Live URLs need --selector, e.g. --selector \".pricing-card\"");
   process.exit(1);
 }
-const opts = { mode: args.mode || "skeleton-texts", duration, delay: lead, ...(args.done ? { done: args.done } : {}) };
-const found = await page.evaluate(({ selector, opts }) => {
-  const el = [selector].flat().map((s) => document.querySelector(s)).find(Boolean);
-  if (!el) return false;
-  el.scrollIntoView({ block: "center" });
+// A scene can mark several elements, each with its own variant, start delay and mode:
+//   <h1 data-generate="text" data-generate-mode="skeleton-texts">  <p data-generate="small-text" data-generate-delay="400">
+// --variant / --mode override them all. A live URL animates the one --selector element.
+const base = { variant: args.variant, mode: args.mode, duration: args.duration && Number(args.duration), lead, done: args.done };
+const variants = await page.evaluate(({ selector, all, base, VARIANTS }) => {
+  const els = all
+    ? [...document.querySelectorAll(selector[0])].concat(document.querySelector(selector[0]) ? [] : [document.querySelector(selector[1])]).filter(Boolean)
+    : [[selector].flat().map((s) => document.querySelector(s)).find(Boolean)].filter(Boolean);
+  if (!els.length) return null;
+  els[0].scrollIntoView({ block: "center" });
   // CSS animations (the step dot pulse) run on real time; pause them and seek per frame.
   window.__starts = new Map();
   window.__seek = (now) => {
@@ -164,21 +184,41 @@ const found = await page.evaluate(({ selector, opts }) => {
       a.currentTime = now - window.__starts.get(a);
     }
   };
-  window.UIGeneration.generate(el, opts);
-  return true;
-}, { selector, opts });
-if (!found) {
+  const runs = els.map((el) => {
+    const d = el.dataset;
+    const variant = base.variant || (VARIANTS.includes(d.generate) ? d.generate : "ui");
+    const opts = {
+      variant,
+      mode: base.mode || d.generateMode || "skeleton-texts",
+      duration: base.duration || +d.generateDuration || (variant === "ui" ? 2400 : 3000),
+      delay: base.lead + (+d.generateDelay || 0),
+      ...(base.done ? { done: base.done } : {}),
+    };
+    return window.UIGeneration.generate(el, opts).finished;
+  });
+  window.__done = false;
+  Promise.all(runs).then(() => { window.__done = true; });
+  return els.map((el) => base.variant || (VARIANTS.includes(el.dataset.generate) ? el.dataset.generate : "ui"));
+}, { selector, all: !args.selector && !isUrl, base, VARIANTS });
+if (!variants) {
   console.error(`Nothing matches ${selector}`);
   process.exit(1);
 }
+const duration = Math.max(...variants.map((v) => base.duration || (v === "ui" ? 2400 : 3000)));
+const variant = [...new Set(variants)].join("+");
 
-const total = Math.ceil(((lead + duration * 1.09 + hold) / 1000) * fps);
+// Record until the run says it's finished (the text variants' fades can run past
+// `duration`), then `hold` more. Capped in case it never resolves.
 const step = 1000 / fps;
+const cap = Math.ceil(((lead + duration * 3) / 1000) * fps);
+const holdFrames = Math.ceil((hold / 1000) * fps);
+let total = Infinity;
 for (let f = 0; f < total; f++) {
   if (f > 0) await page.clock.runFor(step);
   await page.evaluate((now) => window.__seek(now), f * step);
   await page.screenshot({ path: resolve(frames, `${String(f).padStart(5, "0")}.png`), omitBackground: !!args.alpha });
-  if (f % fps === 0) process.stdout.write(`\r${f}/${total} frames`);
+  if (total === Infinity && (f >= cap || (await page.evaluate(() => window.__done)))) total = f + 1 + holdFrames;
+  if (f % fps === 0) process.stdout.write(`\r${f} frames`);
 }
 await browser.close();
 
@@ -194,4 +234,4 @@ if (args.alpha) {
   made.push(mov, webm);
 }
 rmSync(frames, { recursive: true, force: true });
-console.log(`\r${width * scale}x${height * scale}, ${total} frames @ ${fps}fps\n${made.join("\n")}`);
+console.log(`\r${width * scale}x${height * scale}, variant ${variant}, ${total} frames @ ${fps}fps\n${made.join("\n")}`);
